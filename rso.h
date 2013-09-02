@@ -100,6 +100,11 @@ typedef struct {
 	uint32_t elf_hash;
 } export_table_entry;
 
+typedef struct {
+	uint32_t ModuleID;
+	uint32_t Offset;
+} import_entry;
+
 #define SECTION_EXEC 0x1
 #define SECTION_OFF(off) (off&~1)
 

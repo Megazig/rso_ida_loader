@@ -51,6 +51,8 @@ void PatchAddressLO(uint32_t section, uint32_t offset, uint32_t value)
 {
 	/* lo(S + A) */
 	uint32_t where = GetSectionAddress(section, offset);
+	if (where == 0x807b5a62)
+		msg("PatchAddressLO(0x%08x, 0x%08x); [%08x,%08x,%08x]\n", where, value, section, offset, value);
 	patch_word(where, value&0xFFFF);
 	//PatchByte(where + 0, (value >> 8) & 0xFF);
 	//PatchByte(where + 1, (value >> 0) & 0xFF);
@@ -219,6 +221,19 @@ int read_section_table(linput_t *fp, section_entry *entries, int offset, int cou
 	return(1);
 }
 
+int read_import_table(linput_t *fp, import_entry *entries, int offset, int count)
+{
+	qlseek(fp, offset, SEEK_SET);
+	if (qlread(fp, entries, sizeof(import_entry)*count) != sizeof(import_entry)*count) return (0);
+
+	for (uint32_t ii = 0; ii < count; ii++)
+	{
+		entries[ii].ModuleID = swap32(entries[ii].ModuleID);
+		entries[ii].Offset = swap32(entries[ii].Offset);
+	}
+	return (1);
+}
+
 /*-----------------------------------------------------------------
  *
  *   Check if input file can be a rso file. The supposed header
@@ -323,8 +338,14 @@ void idaapi load_file(linput_t *fp, ushort /*neflag*/, const char * /*fileformat
 		char buf[0x100];
 
 		/* 0 == no segment */
-		if (sections[i].Offset == 0) continue;
-		if (sections[i].Length == 0) continue;
+		if ((sections[i].Length != 0) && (sections[i].Offset == 0))
+		{
+			/* FOUND OUR BSS */
+		}
+		else if ((sections[i].Length == 0) && (sections[i].Offset == 0))
+		{
+			continue;
+		}
 
 		qsnprintf(buf, 0x50, ".section%u", i);
 
@@ -351,96 +372,143 @@ void idaapi load_file(linput_t *fp, ushort /*neflag*/, const char * /*fileformat
 		set_segm_addressing(getseg(seg_off), 1);
 
 		/* and get the content from the file */
-		file2base((linput_t*)fp, SECTION_OFF(sections[i].Offset), seg_off, seg_off+sections[i].Length, FILEREG_PATCHABLE);
+		if (sections[i].Offset)
+		{
+			file2base((linput_t*)fp, SECTION_OFF(sections[i].Offset), seg_off, seg_off+sections[i].Length, FILEREG_PATCHABLE);
+		}
 
 		/* update the segment offset */
 		seg_off += sections[i].Length;
 	}
 
-	if (rhdr.RelOffset)
+	if (rhdr.ImpOffset)
 	{
-		uint32_t current_section = 0;
-		uint32_t current_offset  = 0;
-		long rel_to_do = filesize - rhdr.RelOffset;
-		rel_to_do /= sizeof(rel_t);
-		rel_t * rel = new rel_t [rel_to_do];
-		qlseek(fp, rhdr.RelOffset, SEEK_SET);
-		if (qlread(fp, rel, sizeof(rel_t)*rel_to_do) == (sizeof(rel_t)*rel_to_do))
+		uint32_t count = rhdr.ImpSize / sizeof(import_entry);
+		import_entry * entries = new import_entry [count];
+		int imps = read_import_table(fp, entries, rhdr.ImpOffset, count);
+		if (imps)
 		{
-			for (uint32_t ctr = 0; ctr < rel_to_do; ctr++)
+			for (uint32_t ii = 0; ii < count; ii++)
 			{
-				rel[ctr].offset = swap16(rel[ctr].offset);
-				rel[ctr].addend = swap32(rel[ctr].addend);
-#ifdef DEBUG
-				//if (rel[ctr].type != 6 && rel[ctr].type != 4 && rel[ctr].type != 1 && rel[ctr].type != 10)
-				//{
-					msg("REL %06d offset:%04x type:%03d section:%d addend:%08x (%s)\n",
-							ctr,
-							rel[ctr].offset, rel[ctr].type, rel[ctr].section, rel[ctr].addend,
-							(rel[ctr].type <= 11) ? rel_names[rel[ctr].type] : "UNK" );
-				//}
-#endif
-				switch (rel[ctr].type)
-				{
-					case 1: /* R_PPC_ADDR32 */
-						current_offset += rel[ctr].offset;
-						//msg("PatchAddress32(%d, %X, GetSectionAddress(rel[ctr].section, rel[ctr].addend));\n",
-						//		current_section, current_offset);
-						PatchAddress32(current_section, current_offset, GetSectionAddress(rel[ctr].section, rel[ctr].addend));
-						break;
-					case 4: /* R_PPC_ADDR16_LO */
-						current_offset += rel[ctr].offset;
-						PatchAddressLO(current_section, current_offset, GetSectionAddress(rel[ctr].section, rel[ctr].addend));
-						break;
-					case 6: /* R_PPC_ADDR16_HA */
-						current_offset += rel[ctr].offset;
-						PatchAddressHA(current_section, current_offset, GetSectionAddress(rel[ctr].section, rel[ctr].addend));
-						break;
-					case 10: /* R_PPC_REL24 */
-						current_offset += rel[ctr].offset;
-						PatchAddress24(current_section, current_offset, GetSectionAddress(rel[ctr].section, rel[ctr].addend));
-						break;
-					case 201:
-						current_offset += rel[ctr].offset;
-#ifdef DEBUG
-						msg("R_DOLPHIN_NOP\n");
-#endif
-						break;
-					case 202:
-						current_section = rel[ctr].section;
-						current_offset  = 0;
-#ifdef DEBUG
-						msg("Current Section: %d\n", current_section);
-#endif
-						break;
-					case 203:
-#ifdef DEBUG
-						msg("R_DOLPHIN_END\n");
-#endif
-						break;
-					case 204:
-#ifdef DEBUG
-						msg("R_DOLPHIN_MRKREF\n");
-#endif
-						break;
-					default:
-#ifdef DEBUG
-						msg("Unhandled ref type: %d\n", rel[ctr].type);
-#endif
-						break;
+				if (entries[ii].ModuleID == 0)
+				{ /* HANDLE MAIN DOL */
+					msg("Handling main dol\n");
+					uint32_t current_section = 0;
+					uint32_t current_offset  = 0;
+					qlseek(fp, entries[ii].Offset, SEEK_SET);
+					rel_t rel;
+					if (qlread(fp, &rel, sizeof(rel_t)) == (sizeof(rel_t)))
+					{
+						rel.offset = swap16(rel.offset);
+						rel.addend = swap32(rel.addend);
+						while (rel.type != R_DOLPHIN_END)
+						{
+							if (rel.type == R_DOLPHIN_SECTION)
+							{
+								current_section = rel.section;
+							}
+							else if (rel.type == R_DOLPHIN_NOP)
+							{
+								current_offset += rel.offset;
+							}
+							else if (rel.type == R_PPC_ADDR32)
+							{
+								current_offset += rel.offset;
+								PatchAddress32(current_section, current_offset, rel.addend);
+							}
+							else if (rel.type == R_PPC_ADDR16_LO)
+							{
+								current_offset += rel.offset;
+								PatchAddressLO(current_section, current_offset, rel.addend);
+							}
+							else if (rel.type == R_PPC_ADDR16_HA)
+							{
+								current_offset += rel.offset;
+								PatchAddressHA(current_section, current_offset, rel.addend);
+							}
+							else if (rel.type == R_PPC_REL24)
+							{
+								current_offset += rel.offset;
+								PatchAddress24(current_section, current_offset, rel.addend);
+							}
+							else
+							{
+								msg("BAD RELOC TYPE: %d\n", rel.type);
+								break;
+							}
+							if (qlread(fp, &rel, sizeof(rel_t)) != sizeof(rel_t))
+							{
+								break;
+							}
+							rel.offset = swap16(rel.offset);
+							rel.addend = swap32(rel.addend);
+						}
+					}
 				}
-				if (rel[ctr].type != 202)
-				{
-#ifdef DEBUG
-					msg("Current Offset: 0x%08x\n", current_offset);
-#endif
+				else if (entries[ii].ModuleID == rhdr.ModuleID)
+				{ /* HANDLE THIS MODULE */
+					msg("Handling this module\n");
+					uint32_t current_section = 0;
+					uint32_t current_offset  = 0;
+					qlseek(fp, entries[ii].Offset, SEEK_SET);
+					rel_t rel;
+					if (qlread(fp, &rel, sizeof(rel_t)) == (sizeof(rel_t)))
+					{
+						rel.offset = swap16(rel.offset);
+						rel.addend = swap32(rel.addend);
+						while (rel.type != R_DOLPHIN_END)
+						{
+							if (rel.type == R_DOLPHIN_SECTION)
+							{
+								current_section = rel.section;
+							}
+							else if (rel.type == R_DOLPHIN_NOP)
+							{
+								current_offset += rel.offset;
+							}
+							else if (rel.type == R_PPC_ADDR32)
+							{
+								current_offset += rel.offset;
+								PatchAddress32(current_section, current_offset, GetSectionAddress(rel.section, rel.addend));
+							}
+							else if (rel.type == R_PPC_ADDR16_LO)
+							{
+								current_offset += rel.offset;
+								if (current_offset == 0x002b5a62)
+									msg("PatchAddressLO(%d, %08x, %d, %08x)\n", current_section, current_offset, rel.section, rel.addend);
+								PatchAddressLO(current_section, current_offset, GetSectionAddress(rel.section, rel.addend));
+							}
+							else if (rel.type == R_PPC_ADDR16_HA)
+							{
+								current_offset += rel.offset;
+								PatchAddressHA(current_section, current_offset, GetSectionAddress(rel.section, rel.addend));
+							}
+							else if (rel.type == R_PPC_REL24)
+							{
+								current_offset += rel.offset;
+								PatchAddress24(current_section, current_offset, GetSectionAddress(rel.section, rel.addend));
+							}
+							else
+							{
+								msg("BAD RELOC TYPE: %d\n", rel.type);
+								break;
+							}
+							if (qlread(fp, &rel, sizeof(rel_t)) != sizeof(rel_t))
+							{
+								break;
+							}
+							rel.offset = swap16(rel.offset);
+							rel.addend = swap32(rel.addend);
+						}
+					}
 				}
-#ifdef DEBUG
-				if (ctr == 0x40) break;
-#endif
+				else
+				{ /* LINKING AGAINST ANOTHER REL */
+					msg("Need to link against another module\n");
+				}
 			}
 		}
-		delete [] rel;
+		delete [] entries;
 	}
 
 	/* start analysis */
