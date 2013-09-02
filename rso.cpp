@@ -122,6 +122,7 @@ int read_header(linput_t *fp, rsohdr *rhdr)
 	rhdr->BssSize = swap32(rhdr->BssSize);
 	rhdr->RelOffset = swap32(rhdr->RelOffset);
 	rhdr->ImpOffset = swap32(rhdr->ImpOffset);
+	rhdr->ImpSize = swap32(rhdr->ImpSize);
 	rhdr->Prolog = swap32(rhdr->Prolog);
 	rhdr->Epilog = swap32(rhdr->Epilog);
 	rhdr->Unresolved = swap32(rhdr->Unresolved);
@@ -136,6 +137,7 @@ int read_header(linput_t *fp, rsohdr *rhdr)
 	msg("BssSize: %08x\n", rhdr->BssSize);
 	msg("RelOffset: %08x\n", rhdr->RelOffset);
 	msg("ImpOffset: %08x\n", rhdr->ImpOffset);
+	msg("ImpSize: %08x\n", rhdr->ImpSize);
 	msg("PrologS:%d EpilogS:%d UnresolvedS:%d BssS:%d\n",
 			rhdr->PrologSection,
 			rhdr->EpilogSection,

@@ -48,6 +48,7 @@ typedef struct {
 	unsigned int BssSize;
 	unsigned int RelOffset;
 	unsigned int ImpOffset;
+	unsigned int ImpSize;
 	unsigned char PrologSection;
 	unsigned char EpilogSection;
 	unsigned char UnresolvedSection;
