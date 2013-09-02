@@ -51,8 +51,6 @@ void PatchAddressLO(uint32_t section, uint32_t offset, uint32_t value)
 {
 	/* lo(S + A) */
 	uint32_t where = GetSectionAddress(section, offset);
-	if (where == 0x807b5a62)
-		msg("PatchAddressLO(0x%08x, 0x%08x); [%08x,%08x,%08x]\n", where, value, section, offset, value);
 	patch_word(where, value&0xFFFF);
 	//PatchByte(where + 0, (value >> 8) & 0xFF);
 	//PatchByte(where + 1, (value >> 0) & 0xFF);
@@ -406,6 +404,7 @@ void idaapi load_file(linput_t *fp, ushort /*neflag*/, const char * /*fileformat
 							if (rel.type == R_DOLPHIN_SECTION)
 							{
 								current_section = rel.section;
+								current_offset = 0;
 							}
 							else if (rel.type == R_DOLPHIN_NOP)
 							{
@@ -461,6 +460,7 @@ void idaapi load_file(linput_t *fp, ushort /*neflag*/, const char * /*fileformat
 							if (rel.type == R_DOLPHIN_SECTION)
 							{
 								current_section = rel.section;
+								current_offset = 0;
 							}
 							else if (rel.type == R_DOLPHIN_NOP)
 							{
@@ -474,8 +474,6 @@ void idaapi load_file(linput_t *fp, ushort /*neflag*/, const char * /*fileformat
 							else if (rel.type == R_PPC_ADDR16_LO)
 							{
 								current_offset += rel.offset;
-								if (current_offset == 0x002b5a62)
-									msg("PatchAddressLO(%d, %08x, %d, %08x)\n", current_section, current_offset, rel.section, rel.addend);
 								PatchAddressLO(current_section, current_offset, GetSectionAddress(rel.section, rel.addend));
 							}
 							else if (rel.type == R_PPC_ADDR16_HA)
