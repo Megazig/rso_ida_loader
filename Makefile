@@ -5,7 +5,7 @@ LD=g++
 #CC=clang++ -v
 #LD=clang++
 CFLAGS=-D__IDP__ -D__PLUGIN__ -c -D__LINUX__ \
-	   -I/usr/local/idaadv/sdk/include $(SRC)
+	   -I/usr/local/idaadv/sdk/include -std=c++11 $(SRC)
 LDFLAGS=--shared $(OBJS) -L/usr/local/idaadv -lida \
 		-Wl,--version-script=./plugin.script
 all:

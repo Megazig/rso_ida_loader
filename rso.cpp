@@ -22,11 +22,11 @@
 
 //#define DEBUG
 
-void PatchByte(unsigned int address, unsigned char value)
+void PatchByte(uint32_t address, unsigned char value)
 {
 	patch_byte((ea_t)address, (ulong)value);
 }
-unsigned int GetSectionAddress(unsigned int section, unsigned int offset)
+uint32_t GetSectionAddress(uint32_t section, uint32_t offset)
 {
 	char buf[0x100];
 	qsnprintf(buf, 0x100, ".section%u", section);
@@ -37,36 +37,36 @@ unsigned int GetSectionAddress(unsigned int section, unsigned int offset)
 	}
 	return 0xFFFFFFFF;
 }
-void PatchAddress32(unsigned int section, unsigned int offset, unsigned int value)
+void PatchAddress32(uint32_t section, uint32_t offset, uint32_t value)
 {
 	/* S + A */
-	unsigned int where = GetSectionAddress(section, offset);
+	uint32_t where = GetSectionAddress(section, offset);
 	patch_long(where, value);
 	//PatchByte(where + 0, (value >> 24) & 0xFF);
 	//PatchByte(where + 1, (value >> 16) & 0xFF);
 	//PatchByte(where + 2, (value >>  8) & 0xFF);
 	//PatchByte(where + 3, (value >>  0) & 0xFF);
 }
-void PatchAddressLO(unsigned int section, unsigned int offset, unsigned int value)
+void PatchAddressLO(uint32_t section, uint32_t offset, uint32_t value)
 {
 	/* lo(S + A) */
-	unsigned int where = GetSectionAddress(section, offset);
+	uint32_t where = GetSectionAddress(section, offset);
 	patch_word(where, value&0xFFFF);
 	//PatchByte(where + 0, (value >> 8) & 0xFF);
 	//PatchByte(where + 1, (value >> 0) & 0xFF);
 }
-void PatchAddressHI(unsigned int section, unsigned int offset, unsigned int value)
+void PatchAddressHI(uint32_t section, uint32_t offset, uint32_t value)
 {
 	/* hi(S + A) */
-	unsigned int where = GetSectionAddress(section, offset);
+	uint32_t where = GetSectionAddress(section, offset);
 	patch_word(where, (value >> 16) & 0xFFFF);
 	//PatchByte(where + 0, (value >> 24) & 0xFF);
 	//PatchByte(where + 1, (value >> 16) & 0xFF);
 }
-void PatchAddressHA(unsigned int section, unsigned int offset, unsigned int value)
+void PatchAddressHA(uint32_t section, uint32_t offset, uint32_t value)
 {
 	/* ha(S + A) */
-	unsigned int where = GetSectionAddress(section, offset);
+	uint32_t where = GetSectionAddress(section, offset);
 	if ((value & 0x8000) == 0x8000)
 	{
 		value += 0x00010000;
@@ -75,10 +75,10 @@ void PatchAddressHA(unsigned int section, unsigned int offset, unsigned int valu
 	//PatchByte(where + 0, (value >> 24) & 0xFF);
 	//PatchByte(where + 1, (value >> 16) & 0xFF);
 }
-void PatchAddress24(unsigned int section, unsigned int offset, unsigned int value)
+void PatchAddress24(uint32_t section, uint32_t offset, uint32_t value)
 {
 	/* (S + A - P) >> 2 */
-	unsigned int where = GetSectionAddress(section, offset);
+	uint32_t where = GetSectionAddress(section, offset);
 	value -= where;
 	ulong orig = get_original_long(where);
 	orig &= 0xFC000003;
@@ -317,7 +317,7 @@ void idaapi load_file(linput_t *fp, ushort /*neflag*/, const char * /*fileformat
 	if(read_section_table(fp, sections, rhdr.SectionOffset, rhdr.SectionCount) == 0) qexit(1);
 	qlseek(fp, 0, SEEK_SET);
 
-	unsigned int seg_off = START;
+	uint32_t seg_off = START;
 	/* create all segments */
 	for (i=0; i<rhdr.SectionCount; i++) {
 		char buf[0x100];
@@ -359,15 +359,15 @@ void idaapi load_file(linput_t *fp, ushort /*neflag*/, const char * /*fileformat
 
 	if (rhdr.RelOffset)
 	{
-		unsigned int current_section = 0;
-		unsigned int current_offset  = 0;
+		uint32_t current_section = 0;
+		uint32_t current_offset  = 0;
 		long rel_to_do = filesize - rhdr.RelOffset;
 		rel_to_do /= sizeof(rel_t);
 		rel_t * rel = new rel_t [rel_to_do];
 		qlseek(fp, rhdr.RelOffset, SEEK_SET);
 		if (qlread(fp, rel, sizeof(rel_t)*rel_to_do) == (sizeof(rel_t)*rel_to_do))
 		{
-			for (unsigned int ctr = 0; ctr < rel_to_do; ctr++)
+			for (uint32_t ctr = 0; ctr < rel_to_do; ctr++)
 			{
 				rel[ctr].offset = swap16(rel[ctr].offset);
 				rel[ctr].addend = swap32(rel[ctr].addend);
@@ -471,9 +471,9 @@ void idaapi load_file(linput_t *fp, ushort /*neflag*/, const char * /*fileformat
 	if (rhdr.Version == 1)
 	{
 		export_table_entry ent;
-		unsigned int off = xtra.export_table_offset;
-		unsigned int len = xtra.export_table_length;
-		unsigned int nam = xtra.export_table_names;
+		uint32_t off = xtra.export_table_offset;
+		uint32_t len = xtra.export_table_length;
+		uint32_t nam = xtra.export_table_names;
 		for(i=off; i<off+len; i+=sizeof(export_table_entry)) {
 			qlseek(fp, i, SEEK_SET);
 			qlread(fp, &ent, sizeof(export_table_entry));

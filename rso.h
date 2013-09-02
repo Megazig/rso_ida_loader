@@ -8,6 +8,7 @@
 #define __RSO_H__
 
 #define START	0x80500000
+#include <cstdint>
 
 /* Header Size = 100h bytes */
 typedef struct {
@@ -21,97 +22,97 @@ typedef struct {
 } link_t;
 
 typedef struct {
-	unsigned int align;
-	unsigned int bssAlign;
+	uint32_t align;
+	uint32_t bssAlign;
 } module_v2;
 
 typedef struct {
-	unsigned int fixSize;
+	uint32_t fixSize;
 } module_v3;
 
 #define USING_RSO 1
 typedef struct {
 	/* in .rso or .rel, not in .sel */
 #if USING_RSO
-	unsigned int ModuleID;
+	uint32_t ModuleID;
 #endif
 	/* in .rso or .rel or .sel */
-	unsigned int Prev;
-	unsigned int Next;
-	unsigned int SectionCount;
-	unsigned int SectionOffset;
-	unsigned int PathOffset;
-	unsigned int PathLength;
-	unsigned int Version;
+	uint32_t Prev;
+	uint32_t Next;
+	uint32_t SectionCount;
+	uint32_t SectionOffset;
+	uint32_t PathOffset;
+	uint32_t PathLength;
+	uint32_t Version;
 
 	/* type 1 or later */
-	unsigned int BssSize;
-	unsigned int RelOffset;
-	unsigned int ImpOffset;
-	unsigned int ImpSize;
+	uint32_t BssSize;
+	uint32_t RelOffset;
+	uint32_t ImpOffset;
+	uint32_t ImpSize;
 	unsigned char PrologSection;
 	unsigned char EpilogSection;
 	unsigned char UnresolvedSection;
 	unsigned char BssSection;
-	unsigned int Prolog;
-	unsigned int Epilog;
-	unsigned int Unresolved;
+	uint32_t Prolog;
+	uint32_t Epilog;
+	uint32_t Unresolved;
 
 	/* type 2 or later */
-	unsigned int align;
-	unsigned int bssAlign;
+	uint32_t align;
+	uint32_t bssAlign;
 
 	/* type 3 or later */
-	unsigned int fixSize;
+	uint32_t fixSize;
 } rsohdr;
 
 typedef struct {
-	unsigned int internal_table_offset; // 30
-	unsigned int internal_table_length; // 34
-	unsigned int external_table_offset; // 38
-	unsigned int external_table_length; // 3C
-	unsigned int export_table_offset; // 40
-	unsigned int export_table_length; // 44
-	unsigned int export_table_names; // 48
-	unsigned int import_table_offset; // 4C
-	unsigned int import_table_length; // 50
-	unsigned int import_table_names; // 54
+	uint32_t internal_table_offset; // 30
+	uint32_t internal_table_length; // 34
+	uint32_t external_table_offset; // 38
+	uint32_t external_table_length; // 3C
+	uint32_t export_table_offset; // 40
+	uint32_t export_table_length; // 44
+	uint32_t export_table_names; // 48
+	uint32_t import_table_offset; // 4C
+	uint32_t import_table_length; // 50
+	uint32_t import_table_names; // 54
 } module_v1_extra;
 
 /* usually right after header */
 typedef struct {
-	unsigned int Offset;
-	unsigned int Length;
+	uint32_t Offset;
+	uint32_t Length;
 } section_entry;
 
 /* usually after section list */
 /* usually an export then import */
 typedef struct {
-	unsigned int offset;
-	unsigned int length;
-	unsigned int names;
+	uint32_t offset;
+	uint32_t length;
+	uint32_t names;
 } ex_im_port_entry;
 
 typedef struct {
-	unsigned int name_off;
-	unsigned int section_off;
-	unsigned int section_num;
-	unsigned int elf_hash;
+	uint32_t name_off;
+	uint32_t section_off;
+	uint32_t section_num;
+	uint32_t elf_hash;
 } export_table_entry;
 
 #define SECTION_EXEC 0x1
 #define SECTION_OFF(off) (off&~1)
 
 typedef struct {
-	unsigned int id;
-	unsigned int offset;
+	uint32_t id;
+	uint32_t offset;
 } import_info;
 
 typedef struct {
-	unsigned short offset; // byte offset from previous entry
+	uint16_t offset; // byte offset from previous entry
 	unsigned char  type;
 	unsigned char  section;
-	unsigned int   addend;
+	uint32_t   addend;
 } rel_t;
 
 const char * rel_names[] = {
