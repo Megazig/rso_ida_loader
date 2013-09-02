@@ -227,7 +227,7 @@ int read_section_table(linput_t *fp, section_entry *entries, int offset, int cou
  *
  */
 
-int accept_file(linput_t *fp, char fileformatname[MAX_FILE_FORMAT_NAME], int n)
+int idaapi accept_file(linput_t *fp, char fileformatname[MAX_FILE_FORMAT_NAME], int n)
 {
 	int i;
 
@@ -281,7 +281,7 @@ int accept_file(linput_t *fp, char fileformatname[MAX_FILE_FORMAT_NAME], int n)
  *
  */
 
-void load_file(linput_t *fp, ushort /*neflag*/, const char * /*fileformatname*/)
+void idaapi load_file(linput_t *fp, ushort /*neflag*/, const char * /*fileformatname*/)
 {
 	rsohdr rhdr;
 	int i;
